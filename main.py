@@ -1,17 +1,25 @@
 import logging
 import requests
 import asyncio
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import Command
+from aiogram.types import Message, ContentType
+from gtts import gTTS
+import os
+from aiogram.types import Message, FSInputFile
+from googletrans import Translator
 
+import random
 # Токен вашего Telegram-бота
-API_TOKEN = '7505360526:AAHQF-wTEqoaBbg7xLwYvOHUaSe2_dV9o44'
+API_TOKEN = ''
 
 # API-ключ OpenWeatherMap и базовый URL для запросов
 WEATHER_API_KEY = ''
 CITY = 'Voronezh'  # Укажите здесь город, для которого будет предоставляться прогноз погоды
 WEATHER_BASE_URL = ''
+
+translator = Translator()
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +44,10 @@ async def send_help(message: Message):
         "Доступные команды:\n"
         "/start - Начать работу с ботом\n"
         "/help - Получить список команд\n"
-        "/weather - Получить прогноз погоды"
+        "/weather - Получить прогноз погоды\n"
+        "/voice - Получить голосовое сообщение от бота\n"
+        "Отправьте текст, и я переведу его на английский.\n"
+        "Просто отправьте мне фото, и я сохраню его на диск."
     )
     await message.answer(help_text)
 
@@ -67,17 +78,61 @@ async def send_weather(message: Message):
         await message.answer("Не удалось получить данные о погоде. Попробуйте снова позже.")
 
 
+@dp.message(F.photo)
+async def handle_photo(message: Message):
+    await bot.download(message.photo[-1], destination=f'img/{message.photo[-1].file_id}.jpg')
+
 # Хэндлер для обработки всех остальных сообщений
 @dp.message()
 async def echo(message: Message):
     await message.answer("Я не понимаю эту команду. Используйте /help для получения списка команд.")
 
+# @dp.message(Command('voice'))
+# async def voice(message: Message):
+#     voice = FSInputFile("sample.ogg")
+#     await message.answer_voice(voice)
+# @dp.message(Command('training'))
+# async def training(message: Message):
+#    training_list = [
+#        "Тренировка 1:\\n1. Скручивания: 3 подхода по 15 повторений\\n2. Велосипед: 3 подхода по 20 повторений (каждая сторона)\\n3. Планка: 3 подхода по 30 секунд",
+#        "Тренировка 2:\\n1. Подъемы ног: 3 подхода по 15 повторений\\n2. Русский твист: 3 подхода по 20 повторений (каждая сторона)\\n3. Планка с поднятой ногой: 3 подхода по 20 секунд (каждая нога)",
+#        "Тренировка 3:\\n1. Скручивания с поднятыми ногами: 3 подхода по 15 повторений\\n2. Горизонтальные ножницы: 3 подхода по 20 повторений\\n3. Боковая планка: 3 подхода по 20 секунд (каждая сторона)"
+#    ]
+#    rand_tr = random.choice(training_list)
+#    await message.answer(f"Это ваша мини-тренировка на сегодня {rand_tr}")
+#
+#    tts = gTTS(text=rand_tr, lang='ru')
+#    tts.save('training.ogg')
+#    audio = FSInputFile('sound2.ogg')
+#    await bot.send_audio(message.chat.id, audio)
+#    os.remove('training.ogg')
+# @dp.message(Command('voice'))
+# async def voice(message: Message):
+#     voice = FSInputFile("sample.ogg")
+#     await message.answer_voice(voice)
 
+# Команда для отправки голосового сообщения
+@dp.message(Command('voice'))
+async def send_voice_message(message: Message):
+    voice_path = f"{AUDIO_DIR}/voice_message.ogg"
+
+    # Проверьте, существует ли заранее записанное голосовое сообщение
+    if not os.path.exists(voice_path):
+        await message.answer("привет.")
+        return
+
+    voice_file = FSInputFile(voice_path)
+    await bot.send_voice(chat_id=message.chat.id, voice=voice_file, caption="Вот ваше голосовое сообщение!")
+
+
+async def translate_to_english(message: Message):
+    translated_text = translator.translate(message.text, dest='en').text
+    await message.answer(f"Перевод на английский: {translated_text}")
 async def main():
-    # Пропускать обновления, которые бот получил, когда был офлайн
+# Пропускать обновления, которые бот получил, когда был офлайн
     await bot.delete_webhook(drop_pending_updates=True)
 
-    # Запуск процесса обработки сообщений
+# Запуск процесса обработки сообщений
     await dp.start_polling(bot)
 
 
